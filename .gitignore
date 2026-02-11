@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.venv1/
+venv/
+env/
+
+# PyInstaller
+build/
+dist/
+
+# Data & Logs
+logs/
+error/
+browsers/
+data/accounts.xlsx
+data/result_*.xlsx
+*.log
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
