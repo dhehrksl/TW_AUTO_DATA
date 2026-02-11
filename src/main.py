@@ -6,7 +6,7 @@ import tkinter as tk
 import sys
 import subprocess
 import datetime
-from tkinter import filedialog, messagebox, scrolledtext
+from tkinter import filedialog, messagebox, scrolledtext, ttk
 from playwright.async_api import async_playwright
 from config import RESULT_FILENAME
 from excel_handler import load_accounts, init_result_excel, save_results
@@ -50,17 +50,19 @@ stop_event = threading.Event()
 
 def log_message(msg):
     # 로그 출력 및 저장
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    timestamp = datetime.datetime.now().strftime("%H:%M:%S")
     formatted_msg = f"[{timestamp}] {msg}"
     
     if log_widget:
+        log_widget.config(state=tk.NORMAL)
         log_widget.insert(tk.END, formatted_msg + "\n")
         log_widget.see(tk.END)
+        log_widget.config(state=tk.DISABLED)
     print(formatted_msg)
     
     try:
         with open(LOG_FILE, "a", encoding="utf-8") as f:
-            f.write(formatted_msg + "\n")
+            f.write(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {msg}\n")
     except:
         pass
 
@@ -293,60 +295,95 @@ def start_thread(excel_path, concurrency, app_instance):
 class App:
     def __init__(self, root):
         self.root = root
-        self.root.title("TWorld 자동화")
-        self.root.geometry("600x550")
+        self.root.title("TWorld Auto")
+        self.root.geometry("500x650")
+        self.root.configure(bg="#f5f6f7") # 배경색: 밝은 회색
 
+        # 스타일 설정
+        style = ttk.Style()
+        style.theme_use('clam')
+        style.configure("TLabel", background="#f5f6f7", font=("맑은 고딕", 10))
+        style.configure("TButton", font=("맑은 고딕", 10))
+        style.configure("Header.TLabel", font=("맑은 고딕", 16, "bold"), foreground="#2c3e50")
+        style.configure("Card.TFrame", background="white", relief="solid", borderwidth=1)
+
+        # 아이콘 설정
         try:
             if getattr(sys, 'frozen', False):
                 icon_path = os.path.join(sys._MEIPASS, "assets", "my_icon.ico")
             else:
                 icon_path = ICON_FILE
-            
             if os.path.exists(icon_path):
                 self.root.iconbitmap(icon_path)
         except:
             pass
 
-        self.frame_top = tk.Frame(root, pady=10)
-        self.frame_top.pack(fill=tk.X)
+        # === 헤더 영역 ===
+        header_frame = tk.Frame(root, bg="#f5f6f7", pady=20)
+        header_frame.pack(fill=tk.X)
+        
+        lbl_title = ttk.Label(header_frame, text="TWorld 자동화 도구", style="Header.TLabel")
+        lbl_title.pack()
 
-        self.lbl_file = tk.Label(self.frame_top, text="계정 파일:")
-        self.lbl_file.pack(side=tk.LEFT, padx=10)
-
-        self.entry_file = tk.Entry(self.frame_top, width=40)
-        self.entry_file.pack(side=tk.LEFT, padx=5)
+        # === 설정 영역 (카드 형태) ===
+        setting_frame = tk.Frame(root, bg="white", padx=20, pady=20, relief="flat", bd=1)
+        setting_frame.pack(fill=tk.X, padx=20, pady=5)
+        
+        # 파일 선택
+        lbl_file = tk.Label(setting_frame, text="계정 파일 (.xlsx)", bg="white", font=("맑은 고딕", 9, "bold"), fg="#7f8c8d")
+        lbl_file.pack(anchor="w", pady=(0, 5))
+        
+        file_frame = tk.Frame(setting_frame, bg="white")
+        file_frame.pack(fill=tk.X, pady=(0, 15))
+        
+        self.entry_file = ttk.Entry(file_frame)
+        self.entry_file.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
         
         if os.path.exists(DEFAULT_ACCOUNTS_FILE):
             self.entry_file.insert(0, DEFAULT_ACCOUNTS_FILE)
 
-        self.btn_browse = tk.Button(self.frame_top, text="찾기", command=self.browse_file)
-        self.btn_browse.pack(side=tk.LEFT, padx=5)
+        self.btn_browse = tk.Button(file_frame, text="찾기", command=self.browse_file, 
+                                    bg="#ecf0f1", fg="#2c3e50", relief="flat", padx=10)
+        self.btn_browse.pack(side=tk.RIGHT)
 
-        self.frame_settings = tk.Frame(root, pady=5)
-        self.frame_settings.pack(fill=tk.X)
+        # 브라우저 수
+        lbl_concurrency = tk.Label(setting_frame, text="동시 실행 브라우저 수", bg="white", font=("맑은 고딕", 9, "bold"), fg="#7f8c8d")
+        lbl_concurrency.pack(anchor="w", pady=(0, 5))
 
-        self.lbl_concurrency = tk.Label(self.frame_settings, text="브라우저 수:")
-        self.lbl_concurrency.pack(side=tk.LEFT, padx=10)
-
-        self.entry_concurrency = tk.Entry(self.frame_settings, width=5)
-        self.entry_concurrency.pack(side=tk.LEFT, padx=5)
+        self.entry_concurrency = ttk.Entry(setting_frame)
+        self.entry_concurrency.pack(fill=tk.X)
         self.entry_concurrency.insert(0, "5")
 
-        self.frame_btns = tk.Frame(root, pady=10)
-        self.frame_btns.pack()
+        # === 실행 버튼 영역 ===
+        btn_frame = tk.Frame(root, bg="#f5f6f7", pady=15)
+        btn_frame.pack(fill=tk.X, padx=20)
 
-        self.btn_run = tk.Button(self.frame_btns, text="시작", command=self.run, bg="green", fg="white", font=("맑은 고딕", 12, "bold"))
-        self.btn_run.pack(side=tk.LEFT, padx=10)
+        self.btn_run = tk.Button(btn_frame, text="작업 시작", command=self.run, 
+                                 bg="#2ecc71", fg="white", font=("맑은 고딕", 11, "bold"), 
+                                 relief="flat", height=2, cursor="hand2")
+        self.btn_run.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
 
-        self.btn_stop = tk.Button(self.frame_btns, text="중지", command=self.stop, bg="red", fg="white", font=("맑은 고딕", 12, "bold"), state=tk.DISABLED)
-        self.btn_stop.pack(side=tk.LEFT, padx=10)
+        self.btn_stop = tk.Button(btn_frame, text="중지", command=self.stop, 
+                                  bg="#e74c3c", fg="white", font=("맑은 고딕", 11, "bold"), 
+                                  relief="flat", height=2, cursor="hand2", state=tk.DISABLED)
+        self.btn_stop.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=(5, 0))
 
-        self.lbl_log = tk.Label(root, text="로그:")
-        self.lbl_log.pack(anchor="w", padx=10)
+        # === 로그 영역 ===
+        log_label_frame = tk.Frame(root, bg="#f5f6f7", padx=20)
+        log_label_frame.pack(fill=tk.X)
+        tk.Label(log_label_frame, text="진행 로그", bg="#f5f6f7", font=("맑은 고딕", 9, "bold"), fg="#7f8c8d").pack(anchor="w")
+
+        log_frame = tk.Frame(root, bg="white", padx=1, pady=1) # 테두리 효과
+        log_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(5, 10))
 
         global log_widget
-        log_widget = scrolledtext.ScrolledText(root, height=20)
-        log_widget.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        log_widget = scrolledtext.ScrolledText(log_frame, height=10, font=("Consolas", 9), 
+                                               bg="#2c3e50", fg="#ecf0f1", state=tk.DISABLED)
+        log_widget.pack(fill=tk.BOTH, expand=True)
+
+        # === 하단 ===
+        footer_frame = tk.Frame(root, bg="#f5f6f7", pady=10)
+        footer_frame.pack(fill=tk.X)
 
     def browse_file(self):
         initial_dir = DATA_DIR if os.path.exists(DATA_DIR) else BASE_PATH
@@ -372,9 +409,13 @@ class App:
             messagebox.showwarning("경고", "숫자를 입력해주세요.")
             return
         
-        self.btn_run.config(state=tk.DISABLED)
-        self.btn_stop.config(state=tk.NORMAL)
+        self.btn_run.config(state=tk.DISABLED, bg="#95a5a6") # 비활성화 색상
+        self.btn_stop.config(state=tk.NORMAL, bg="#e74c3c")
+        
+        log_widget.config(state=tk.NORMAL)
         log_widget.delete(1.0, tk.END)
+        log_widget.config(state=tk.DISABLED)
+        
         log_message(f"시작... ({concurrency}개)")
         
         start_thread(excel_path, concurrency, self)
@@ -383,11 +424,11 @@ class App:
         if messagebox.askyesno("중지", "중지하시겠습니까?"):
             log_message("중지 중...")
             stop_event.set()
-            self.btn_stop.config(state=tk.DISABLED)
+            self.btn_stop.config(state=tk.DISABLED, bg="#95a5a6")
 
     def reset_ui(self):
-        self.btn_run.config(state=tk.NORMAL, text="시작")
-        self.btn_stop.config(state=tk.DISABLED)
+        self.btn_run.config(state=tk.NORMAL, text="시작", bg="#2ecc71")
+        self.btn_stop.config(state=tk.DISABLED, bg="#95a5a6")
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--install-worker":
